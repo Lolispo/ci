@@ -1,0 +1,36 @@
+.github/workflows/deploy-app.yml
+  s_48a92268593361::t_a600da6adbcfff 128
+  s_48a92268593361::t_9400b4212b7191 147
+  s_8dab629a68f4e5::t_f609d487fb4cb9 13-14,21-22
+  s_48a92268593361::t_bb55e07cdc0a2e 106-109,116,118,120
+  s_8dab629a68f4e5::t_3a4095583d273e 123-125
+  s_8dab629a68f4e5::t_396f590d06811e 92-98
+  s_48a92268593361::t_8bc894dad6bb41 23-25
+  s_48a92268593361::t_acf13c9f80d6e5 156
+  s_8dab629a68f4e5::t_72c463877da1a0 41-47,49
+  s_48a92268593361::t_0eae24892a41d6 62-64,68-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "0f852cb9e308a59155991b8d7dbd1e6bbd989544",
+  "prompts": {},
+  "sessions": {
+    "s_48a92268593361": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "72791fcc-fe2b-4f37-ba0b-3214bdc4ff41",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Petter Andersson <12279747+Lolispo@users.noreply.github.com>"
+    },
+    "s_8dab629a68f4e5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "87ca8edb-7b9e-40e9-84fe-bc4f68910e0e",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Petter Andersson <12279747+Lolispo@users.noreply.github.com>"
+    }
+  }
+}
