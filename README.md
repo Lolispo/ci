@@ -17,7 +17,8 @@ CloudFront invalidation, with the RUM analytics snippet injected into each HTML
 file). Config (apps bucket, CloudFront distribution, RUM ids) is read from SSM at
 deploy time.
 
-**Public app** (calls this repo directly, ARN from a repo variable):
+**Public app** (calls this repo directly; pass the ARN as a masked **secret** so
+its account id stays out of the public run logs):
 
 ```yaml
 jobs:
@@ -26,19 +27,29 @@ jobs:
     uses: Lolispo/ci/.github/workflows/deploy-app.yml@main
     with:
       app-id: dominion
-      role-arn: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+    secrets:
+      role-arn: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
 ```
 
 **Private app**: keep calling `Lolispo/web-platform/.github/workflows/deploy-app.yml@main`
 as before — that workflow is a thin passthrough to this one and fills in
 `role-arn`, so private apps need no changes.
 
+**Onboarding a new repo**: see [`CLAUDE.md`](CLAUDE.md) for the full step-by-step
+(how to pick the entry point by visibility, the build contract, and verification).
+
 | input | required | default | notes |
 |-------|----------|---------|-------|
 | `app-id` | yes | — | subdomain / bucket prefix |
-| `role-arn` | yes | — | OIDC role to assume; kept out of this public source |
+| `role-arn` (input) | no | `""` | OIDC role ARN for the private passthrough; public apps use the secret instead |
 | `install-command` | no | `npm ci` | dependency install |
 | `build-command` | no | `npm run build` | build step (stage into `dist-dir`) |
-| `dist-dir` | no | `dist` | directory synced to S3 |
+| `dist-dir` | no | `dist` | build output to sync, relative to `working-directory` |
+| `working-directory` | no | `.` | subdir to install/build in and resolve `dist-dir` against |
+| `inject-rum` | no | `true` | set `false` to opt a site out of the RUM snippet |
 | `node-version` | no | `22` | |
 | `aws-region` | no | `eu-north-1` | |
+
+| secret | required | notes |
+|--------|----------|-------|
+| `role-arn` | no | masked OIDC role ARN; takes precedence over the input. Public callers should use this |
