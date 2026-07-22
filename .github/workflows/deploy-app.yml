@@ -153,5 +153,12 @@ jobs:
           set -euo pipefail
           BUCKET=$(aws ssm get-parameter --name /platform/apps-bucket --query Parameter.Value --output text)
           DIST=$(aws ssm get-parameter --name /platform/distribution-id --query Parameter.Value --output text)
-          aws s3 sync "$DIST_PATH" "s3://$BUCKET/${{ inputs.app-id }}/" --delete
-          aws cloudfront create-invalidation --distribution-id "$DIST" --paths "/${{ inputs.app-id }}/*"
+          APP_ID='${{ inputs.app-id }}'
+          # The apex (www/) prefix also holds the platform-generated apps.json
+          # manifest (written by web-platform/scripts/gen-manifest.sh), which is NOT
+          # part of any app's build output. Never let an apex content sync --delete
+          # it, or the hub 404s its manifest until the next gen-manifest run.
+          DELETE_EXCLUDE=""
+          [ "$APP_ID" = "www" ] && DELETE_EXCLUDE="--exclude apps.json"
+          aws s3 sync "$DIST_PATH" "s3://$BUCKET/$APP_ID/" --delete $DELETE_EXCLUDE
+          aws cloudfront create-invalidation --distribution-id "$DIST" --paths "/$APP_ID/*"
