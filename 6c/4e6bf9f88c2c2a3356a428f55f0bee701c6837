@@ -1,0 +1,25 @@
+.github/workflows/deploy-app.yml
+  s_55adc110aee18b::t_e630c1b8c619a7 1-113
+.omc/state/hud-state.json
+  s_55adc110aee18b::t_60cfcb8ed669f4 1-6
+.omc/state/hud-stdin-cache.json
+  s_55adc110aee18b::t_6473f846d55038 1
+README.md
+  s_55adc110aee18b::t_2fae4187861d8b 1-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "6c4e6bf9f88c2c2a3356a428f55f0bee701c6837",
+  "prompts": {},
+  "sessions": {
+    "s_55adc110aee18b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4cee901a-26a8-4212-98df-340b3a80ad98",
+        "model": "unknown"
+      },
+      "human_author": "Petter Andersson <12279747+Lolispo@users.noreply.github.com>"
+    }
+  }
+}
