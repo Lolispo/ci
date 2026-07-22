@@ -10,14 +10,19 @@
 # Callers:
 #   - Private apps call it indirectly via Lolispo/web-platform's passthrough
 #     (which fills in role-arn), so they need no changes.
-#   - Public apps call it directly and pass role-arn from a repo variable, e.g.:
+#   - Public apps call it directly and pass role-arn as a masked SECRET (so the
+#     ARN / account id stays out of their public run logs), e.g.:
 #       jobs:
 #         deploy:
 #           permissions: { id-token: write, contents: read }
 #           uses: Lolispo/ci/.github/workflows/deploy-app.yml@main
 #           with:
 #             app-id: dominion
-#             role-arn: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+#           secrets:
+#             role-arn: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+#     Apps whose deployable site lives in a subfolder pass working-directory
+#     (install/build/cache are scoped there, dist-dir resolves against it), and
+#     a site can opt out of RUM with inject-rum: false.
 #
 # Access to AWS is gated by the OIDC role's trust policy (repo:Lolispo/*), not by
 # this file being private — the token's repository claim reflects the top-level
@@ -33,12 +38,15 @@ on:
         type: string
       role-arn:
         description: >-
-          AWS IAM role ARN to assume via OIDC. Required (kept out of this public
-          source): private apps get it from web-platform's passthrough default,
-          public apps pass it from a repo variable. Not a secret — the OIDC trust
-          policy (repo:Lolispo/*) is what gates access.
-        required: true
+          AWS IAM role ARN to assume via OIDC, passed as a plain input. Used by
+          web-platform's passthrough for private apps (whose run logs are private).
+          Public callers should instead pass the `role-arn` SECRET so the ARN (and
+          its account id) is masked in their public logs — the secret takes
+          precedence over this input when both are set. Access is gated by the OIDC
+          trust policy (repo:Lolispo/*), not by secrecy of the ARN.
+        required: false
         type: string
+        default: ""
       build-command:
         required: false
         type: string
@@ -51,9 +59,28 @@ on:
         type: string
         default: npm ci
       dist-dir:
+        description: >-
+          Build output directory to deploy, relative to working-directory
+          (so a subdir app can keep the default).
         required: false
         type: string
         default: dist
+      working-directory:
+        description: >-
+          Subdirectory to install and build in, and to resolve dist-dir
+          against. Defaults to the repo root; set e.g. `site` for a repo whose
+          deployable app lives in a subfolder and whose root holds an unrelated
+          package tree that must not be installed in CI.
+        required: false
+        type: string
+        default: "."
+      inject-rum:
+        description: >-
+          Whether to inject the platform RUM analytics snippet into built HTML.
+          Defaults true; set false to opt a site out of RUM.
+        required: false
+        type: boolean
+        default: true
       node-version:
         required: false
         type: string
@@ -62,6 +89,13 @@ on:
         required: false
         type: string
         default: eu-north-1
+    secrets:
+      role-arn:
+        description: >-
+          Masked alternative to the role-arn input, for public callers that don't
+          want the ARN (with its account id) printed in their public run logs. If
+          set, it takes precedence over the role-arn input.
+        required: false
 
 jobs:
   deploy:
@@ -69,19 +103,29 @@ jobs:
     permissions:
       id-token: write
       contents: read
+    # dist-dir is relative to working-directory; resolve it once so the RUM and
+    # S3 steps (which run at the repo root) find the build output either way.
+    env:
+      DIST_PATH: ${{ inputs.working-directory }}/${{ inputs.dist-dir }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: ${{ inputs.node-version }}
           cache: npm
+          cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
       - run: ${{ inputs.install-command }}
+        working-directory: ${{ inputs.working-directory }}
       - run: ${{ inputs.build-command }}
+        working-directory: ${{ inputs.working-directory }}
       - uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: ${{ inputs.role-arn }}
+          # Prefer the masked secret (public callers); fall back to the input
+          # (web-platform passthrough for private apps).
+          role-to-assume: ${{ secrets.role-arn || inputs.role-arn }}
           aws-region: ${{ inputs.aws-region }}
       - name: Inject RUM analytics snippet
+        if: ${{ inputs.inject-rum }}
         run: |
           set -euo pipefail
           ssm() { aws ssm get-parameter --name "$1" --query Parameter.Value --output text; }
@@ -100,7 +144,7 @@ jobs:
           # an env-var PREFIX, not an `awk … BLOCK=…` arg (that sets an awk var and a
           # multi-line value errors "newline in string"). Mirrors scripts/inject-rum.sh —
           # keep the two in sync.
-          find "${{ inputs.dist-dir }}" -type f -name '*.html' | while read -r f; do
+          find "$DIST_PATH" -type f -name '*.html' | while read -r f; do
             BLOCK="$BLOCK" awk 'BEGIN{skip=0;done=0}/petterbuilds-rum:start/{skip=1;next}/petterbuilds-rum:end/{skip=0;next}skip{next}{lines[NR]=$0}END{for(i=1;i<=NR;i++){l=lines[i];if(!done&&(l ~ /<\/head>/||l ~ /<\/body>/)){print ENVIRON["BLOCK"];done=1}print l}if(!done)print ENVIRON["BLOCK"]}' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
           done
 
@@ -109,5 +153,5 @@ jobs:
           set -euo pipefail
           BUCKET=$(aws ssm get-parameter --name /platform/apps-bucket --query Parameter.Value --output text)
           DIST=$(aws ssm get-parameter --name /platform/distribution-id --query Parameter.Value --output text)
-          aws s3 sync "${{ inputs.dist-dir }}" "s3://$BUCKET/${{ inputs.app-id }}/" --delete
+          aws s3 sync "$DIST_PATH" "s3://$BUCKET/${{ inputs.app-id }}/" --delete
           aws cloudfront create-invalidation --distribution-id "$DIST" --paths "/${{ inputs.app-id }}/*"
