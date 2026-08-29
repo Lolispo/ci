@@ -133,11 +133,23 @@ jobs:
           POOL_ID=$(ssm /platform/rum/identity-pool-id)
           ROLE_ARN=$(ssm /platform/rum/guest-role-arn)
           RUM_REGION=$(ssm /platform/rum/region)
+          # Tag every event with the app id. Without it every app's data lands
+          # under one application_name and nothing can tell them apart -- there
+          # is a single app monitor for the platform, and extended metrics
+          # cannot separate them either (PageId is their only page dimension,
+          # and pageIdFormat has no hostname option, so apps on their own
+          # subdomains all collide on "/"). Mirrors web-platform's
+          # scripts/inject-rum.sh; keep the two in step.
+          SESSION_APP='${{ inputs.app-id }}'
+          SESSION_ATTRS=""
+          if [ -n "$SESSION_APP" ]; then
+            SESSION_ATTRS="sessionAttributes:{app:'$SESSION_APP'},"
+          fi
           START='<!-- petterbuilds-rum:start -->'
           END='<!-- petterbuilds-rum:end -->'
           BLOCK="$START
           <script>
-          (function(n,i,v,r,s,c,u,x,z){x=window.AwsRumClient={q:[],n:n,i:i,v:v,r:r,c:c,u:u};window[n]=function(c,p){x.q.push({c:c,p:p});};z=document.createElement('script');z.async=true;z.src=s;document.head.insertBefore(z,document.getElementsByTagName('script')[0]);})('cwr','$APP_ID','1.0.0','$RUM_REGION','https://client.rum.us-east-1.amazonaws.com/3.x/cwr.js',{sessionSampleRate:1,guestRoleArn:'$ROLE_ARN',identityPoolId:'$POOL_ID',endpoint:'https://dataplane.rum.$RUM_REGION.amazonaws.com',telemetries:['errors','performance'],allowCookies:false,enableXRay:false});
+          (function(n,i,v,r,s,c,u,x,z){x=window.AwsRumClient={q:[],n:n,i:i,v:v,r:r,c:c,u:u};window[n]=function(c,p){x.q.push({c:c,p:p});};z=document.createElement('script');z.async=true;z.src=s;document.head.insertBefore(z,document.getElementsByTagName('script')[0]);})('cwr','$APP_ID','1.0.0','$RUM_REGION','https://client.rum.us-east-1.amazonaws.com/3.x/cwr.js',{sessionSampleRate:1,${SESSION_ATTRS}guestRoleArn:'$ROLE_ARN',identityPoolId:'$POOL_ID',endpoint:'https://dataplane.rum.$RUM_REGION.amazonaws.com',telemetries:['errors','performance'],allowCookies:false,enableXRay:false});
           </script>
           <script>
           // Tell RUM a login just happened. auth.petterbuilds.com marks the return url
