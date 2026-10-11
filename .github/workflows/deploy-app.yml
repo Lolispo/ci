@@ -155,7 +155,7 @@ jobs:
           END='<!-- petterbuilds-rum:end -->'
           BLOCK="$START
           <script>
-          (function(n,i,v,r,s,c,u,x,z){x=window.AwsRumClient={q:[],n:n,i:i,v:v,r:r,c:c,u:u};window[n]=function(c,p){x.q.push({c:c,p:p});};z=document.createElement('script');z.async=true;z.src=s;document.head.insertBefore(z,document.getElementsByTagName('script')[0]);})('cwr','$APP_ID','1.0.0','$RUM_REGION','https://client.rum.us-east-1.amazonaws.com/3.x/cwr.js',{sessionSampleRate:1,${SESSION_ATTRS}identityPoolId:'$POOL_ID',endpoint:'https://dataplane.rum.$RUM_REGION.amazonaws.com',telemetries:['errors','performance'],allowCookies:false,enableXRay:false});
+          (function(n,i,v,r,s,c,u,x,z){x=window.AwsRumClient={q:[],n:n,i:i,v:v,r:r,c:c,u:u};window[n]=function(c,p){x.q.push({c:c,p:p});};z=document.createElement('script');z.async=true;z.src=s;document.head.insertBefore(z,document.getElementsByTagName('script')[0]);})('cwr','$APP_ID','1.0.0','$RUM_REGION','https://client.rum.us-east-1.amazonaws.com/3.x/cwr.js',{sessionSampleRate:1,${SESSION_ATTRS}identityPoolId:'$POOL_ID',endpoint:'https://dataplane.rum.$RUM_REGION.amazonaws.com',telemetries:['errors','performance','interaction','replay'],allowCookies:true,enableXRay:false});
           </script>
           <script>
           // Tell RUM a login just happened. auth.petterbuilds.com marks the return url
